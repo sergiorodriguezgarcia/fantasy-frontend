@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Color de marca: azul del escudo (#0067CC = brand-600, azul marino #081D39 = brand-950).
+   El verde se reserva para significados: puntos, dinero, éxito, "en curso", campo, badge MED. */
+@theme {
+  --color-brand-50:  #eef6ff;
+  --color-brand-100: #d9eaff;
+  --color-brand-200: #b6d6ff;
+  --color-brand-300: #84bbff;
+  --color-brand-400: #4b9bf5;
+  --color-brand-500: #1f80e6;
+  --color-brand-600: #0067cc;
+  --color-brand-700: #0053a6;
+  --color-brand-800: #034387;
+  --color-brand-900: #08356b;
+  --color-brand-950: #081d39;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-gray-100 font-sans antialiased m-0;
+  }
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 active:bg-brand-800
+           text-white font-semibold px-4 py-2 rounded-lg
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+  .btn-secondary {
+    @apply bg-gray-700 hover:bg-gray-600
+           text-white font-semibold px-4 py-2 rounded-lg
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+  .btn-danger {
+    @apply bg-red-700 hover:bg-red-600
+           text-white font-semibold px-4 py-2 rounded-lg
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+  .card {
+    @apply bg-gray-900 border border-gray-800 rounded-xl p-4;
+  }
+  .input {
+    @apply w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2
+           text-gray-100 placeholder-gray-500
+           focus:outline-none focus:border-brand-500 transition-colors;
+  }
+  .badge-POR { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-yellow-500 text-yellow-950; }
+  .badge-DEF { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-blue-500 text-blue-950; }
+  .badge-MED { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-green-500 text-green-950; }
+  .badge-DEL { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-red-500 text-red-950; }
+  .badge-null { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-gray-600 text-gray-200; }
+}
