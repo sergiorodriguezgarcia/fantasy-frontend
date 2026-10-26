@@ -28,13 +28,21 @@ export function AuthProvider({ children }) {
     return usuario;
   }
 
+  // Nueva contraseña con el token del enlace del correo; el backend deja la sesión iniciada
+  async function restablecerPassword(tokenEnlace, password) {
+    const { token, usuario } = await api.restablecerPassword(tokenEnlace, password);
+    localStorage.setItem('token', token);
+    setUser(usuario);
+    return usuario;
+  }
+
   function logout() {
     localStorage.removeItem('token');
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, registro, logout }}>
+    <AuthContext.Provider value={{ user, login, registro, restablecerPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

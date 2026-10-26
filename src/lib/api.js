@@ -17,7 +17,9 @@ async function request(path, options = {}) {
     ...options,
   });
 
-  if (res.status === 401) {
+  // Sesión caducada: volver al login. Un login con credenciales erróneas también da 401, pero ahí
+  // hay que mostrar el error del backend sin recargar la página
+  if (res.status === 401 && path !== '/auth/login') {
     localStorage.removeItem('token');
     window.location.href = '/login';
     throw new Error('No autenticado');
@@ -45,6 +47,10 @@ export const api = {
   registro: (nombre, email, password) =>
     request('/auth/registro', { method: 'POST', body: JSON.stringify({ nombre, email, password }) }),
   me: () => request('/auth/me'),
+  recuperarPassword: (email) =>
+    request('/auth/recuperar', { method: 'POST', body: JSON.stringify({ email }) }),
+  restablecerPassword: (token, password) =>
+    request('/auth/restablecer', { method: 'POST', body: JSON.stringify({ token, password }) }),
 
   // Jugadores
   jugadores: (params = {}) =>
@@ -148,6 +154,21 @@ export const api = {
 // URL directa (sin JWT) para usar en <img src>
 export function fotoJugadorUrl(id) {
   return `${BASE}/jugadores/${id}/foto`;
+}
+
+// Importe exacto: 1250000 → "1.250.000 €"
+export function formatEuros(n) {
+  return `${Number(n ?? 0).toLocaleString('es-ES')} €`;
+}
+
+// Lee un importe escrito a mano: "1250000", "1.250.000", "1,25M", "1.5M", "750K" → euros (o NaN)
+export function parseImporte(texto) {
+  const t = String(texto ?? '').trim().toUpperCase().replace(/\s|€/g, '');
+  const m = t.match(/^(\d+(?:[.,]\d+)?)([MK])$/);
+  if (m) return Math.round(Number(m[1].replace(',', '.')) * (m[2] === 'M' ? 1_000_000 : 1_000));
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return Number(t.replace(/\./g, ''));
+  if (/^\d+$/.test(t)) return Number(t);
+  return NaN;
 }
 
 export function formatMoney(n) {

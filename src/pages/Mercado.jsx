@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, formatMoney } from '../lib/api';
+import { api, formatMoney, formatEuros } from '../lib/api';
 import PosBadge from '../components/PosBadge';
 import JugadorFoto from '../components/JugadorFoto';
 import Spinner from '../components/Spinner';
 import JugadorModal from '../components/JugadorModal';
 import CuentaAtras from '../components/CuentaAtras';
+import PujaModal from '../components/PujaModal';
 
 export default function Mercado() {
   const [tab, setTab] = useState('subastas'); // 'subastas' | 'jugadores' | 'ofertas'
@@ -17,6 +18,7 @@ export default function Mercado() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [saldo, setSaldo] = useState(null);
+  const [subastaPuja, setSubastaPuja] = useState(null);
 
   useEffect(() => {
     cargarSubastas();
@@ -78,20 +80,11 @@ export default function Mercado() {
     } catch (e) { setMsg(`Error: ${e.message}`); }
   }
 
-  async function pujar(subasta) {
-    const minima = Number(subasta.puja_minima ?? subasta.precio_actual);
-    const monto = parseInt(prompt(`Introduce tu puja (en euros). Mínimo: ${formatMoney(minima)}`, subasta.mi_puja ?? minima));
-    if (!monto) return;
-    if (monto < minima) {
-      setMsg(`Error: la puja no puede ser inferior al valor actual del jugador (${formatMoney(minima)})`);
-      return;
-    }
-    try {
-      await api.pujar(subasta.id, monto);
-      setMsg(`Puja de ${formatMoney(monto)} registrada`);
-      cargarSubastas();
-      api.miEquipo().then(e => setSaldo(e.saldo_disponible)).catch(() => {});
-    } catch (e) { setMsg(`Error: ${e.message}`); }
+  function pujaRegistrada(monto) {
+    setSubastaPuja(null);
+    setMsg(`Puja de ${formatEuros(monto)} registrada`);
+    cargarSubastas();
+    api.miEquipo().then(e => setSaldo(e.saldo_disponible)).catch(() => {});
   }
 
   async function cancelarSubasta(idSubasta) {
@@ -117,6 +110,14 @@ export default function Mercado() {
   return (
     <div className="space-y-4">
       <JugadorModal idJugador={jugadorModal} onClose={() => setJugadorModal(null)} />
+      {subastaPuja && (
+        <PujaModal
+          subasta={subastaPuja}
+          saldo={saldo}
+          onClose={() => setSubastaPuja(null)}
+          onPujada={pujaRegistrada}
+        />
+      )}
       <div className="flex items-center justify-between">
         <h1 className="font-bold text-xl">Mercado</h1>
         {saldo !== null && (
@@ -197,8 +198,8 @@ export default function Mercado() {
                         </div>
                       ) : (
                         <div>
-                          <span className="text-gray-400">Valor actual: </span>
-                          <span className="font-bold text-green-400">{formatMoney(s.precio_actual)}</span>
+                          <span className="text-gray-400">Puja mínima: </span>
+                          <span className="font-bold text-green-400">{formatMoney(s.puja_minima ?? s.precio_actual)}</span>
                           <span className="text-gray-500 ml-1">({s.puja_info?.total ?? 0} pujas)</span>
                         </div>
                       )}
@@ -220,7 +221,7 @@ export default function Mercado() {
                             Cancelar
                           </button>
                           <button
-                            onClick={() => pujar(s)}
+                            onClick={() => setSubastaPuja(s)}
                             className="btn-primary text-sm py-1 px-3"
                           >
                             Mejorar
@@ -228,7 +229,7 @@ export default function Mercado() {
                         </>
                       ) : (
                         <button
-                          onClick={() => pujar(s)}
+                          onClick={() => setSubastaPuja(s)}
                           className="btn-primary text-sm py-1 px-3"
                         >
                           Pujar

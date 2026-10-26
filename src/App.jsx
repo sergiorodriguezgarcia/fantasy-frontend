@@ -5,6 +5,8 @@ import Spinner from './components/Spinner';
 
 import Login from './pages/Login';
 import Registro from './pages/Registro';
+import RecuperarPassword from './pages/RecuperarPassword';
+import RestablecerPassword from './pages/RestablecerPassword';
 import Inicio from './pages/Inicio';
 import MiEquipo from './pages/MiEquipo';
 import Mercado from './pages/Mercado';
@@ -51,6 +53,9 @@ export default function App() {
         {/* Rutas públicas */}
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/registro" element={<PublicOnly><Registro /></PublicOnly>} />
+        <Route path="/recuperar" element={<PublicOnly><RecuperarPassword /></PublicOnly>} />
+        {/* Sin PublicOnly: el enlace del correo tiene que funcionar aunque haya una sesión abierta */}
+        <Route path="/restablecer" element={<RestablecerPassword />} />
 
         {/* Rutas privadas con Layout */}
         <Route element={<RequireAuth />}>

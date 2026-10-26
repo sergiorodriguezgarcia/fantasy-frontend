@@ -43,7 +43,12 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Contraseña</label>
+            <div className="flex items-baseline justify-between mb-1">
+              <label className="block text-sm text-gray-400">Contraseña</label>
+              <Link to="/recuperar" className="text-xs text-brand-400 hover:underline">
+                ¿Has olvidado tu contraseña?
+              </Link>
+            </div>
             <input
               className="input"
               type="password"
