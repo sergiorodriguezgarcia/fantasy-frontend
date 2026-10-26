@@ -5,6 +5,9 @@ import { useAuth } from '../lib/auth';
 import Spinner from '../components/Spinner';
 import ProximosPartidos from '../components/ProximosPartidos';
 
+// Máximo de jugadores por plantilla (el backend no deja fichar más: services/plantilla.js)
+const MAX_JUGADORES = 15;
+
 export default function Inicio() {
   const { user } = useAuth();
   const [clasificacion, setClasificacion] = useState([]);
@@ -33,6 +36,7 @@ export default function Inicio() {
   if (loading) return <Spinner />;
 
   const miPuesto = clasificacion.findIndex(e => e.propietario === user?.nombre) + 1;
+  const numJugadores = miEquipo?.jugadores?.length ?? 0;
 
   return (
     <div className="space-y-4">
@@ -55,8 +59,8 @@ export default function Inicio() {
           </div>
           <div>
             <p className="text-gray-400">Jugadores</p>
-            <p className="text-white font-bold text-lg">
-              {miEquipo?.jugadores?.length ?? 0}/13
+            <p className={`font-bold text-lg ${numJugadores >= MAX_JUGADORES ? 'text-yellow-400' : 'text-white'}`}>
+              {numJugadores}/{MAX_JUGADORES}
             </p>
           </div>
         </div>
@@ -122,7 +126,9 @@ export default function Inicio() {
         <Link to="/mi-equipo" className="card text-center hover:border-brand-700 transition-colors">
           <p className="text-2xl">👕</p>
           <p className="font-semibold mt-1">Mi Equipo</p>
-          <p className="text-xs text-gray-500">{miEquipo?.jugadores?.length ?? 0}/13 jugadores</p>
+          <p className="text-xs text-gray-500">
+            {numJugadores >= MAX_JUGADORES ? 'Plantilla completa' : `${numJugadores}/${MAX_JUGADORES} jugadores`}
+          </p>
         </Link>
       </div>
     </div>
