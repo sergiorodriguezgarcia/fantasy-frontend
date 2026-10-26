@@ -7,82 +7,6 @@ import { diasProteccion } from './ClausulaChip';
 import Spinner from './Spinner';
 import PrecioGrafica from './PrecioGrafica';
 
-// Tabla de puntos por posición (igual que el backend)
-const TABLA = {
-  POR: { gol: 6, porteriaCero: 4, golPropio: -2, encajado: -1, cadaX: 1, am: -1, rj: -3, min60: 2, min1: 1 },
-  DEF: { gol: 6, porteriaCero: 3, golPropio: -2, encajado: -1, cadaX: 1, am: -1, rj: -3, min60: 2, min1: 1 },
-  MED: { gol: 5, porteriaCero: 1, golPropio: -2, encajado: -1, cadaX: 2, am: -1, rj: -3, min60: 2, min1: 1 },
-  DEL: { gol: 4, porteriaCero: 0, golPropio: -2, encajado: -1, cadaX: 2, am: -1, rj: -3, min60: 2, min1: 1 },
-};
-
-function desglosePuntos(posicion, s) {
-  const t = TABLA[posicion] ?? TABLA.DEL;
-  const lineas = [];
-  let total = 0;
-
-  // Minutos
-  if (s.minutos >= 60) {
-    lineas.push({ label: `≥60 min jugados`, pts: t.min60 });
-    total += t.min60;
-  } else if (s.minutos > 0) {
-    lineas.push({ label: `${s.minutos} min jugados`, pts: t.min1 });
-    total += t.min1;
-  }
-
-  // Goles
-  if (s.goles > 0) {
-    const pts = s.goles * t.gol;
-    lineas.push({ label: `${s.goles} gol${s.goles > 1 ? 'es' : ''} (×${t.gol})`, pts });
-    total += pts;
-  }
-
-  // Gol en propia puerta
-  if (s.goles_propio > 0) {
-    const pts = s.goles_propio * t.golPropio;
-    lineas.push({ label: `${s.goles_propio} gol${s.goles_propio > 1 ? 'es' : ''} en propia puerta`, pts });
-    total += pts;
-  }
-
-  // Portería a cero
-  if (s.porteria_cero && s.minutos >= 90) {
-    lineas.push({ label: 'Portería a cero', pts: t.porteriaCero });
-    total += t.porteriaCero;
-  } else if (s.porteria_cero && s.minutos < 90) {
-    lineas.push({ label: 'Portería a cero (no llegó a 90 min)', pts: 0, muted: true });
-  }
-
-  // Goles encajados (solo POR y DEF)
-  if ((posicion === 'POR' || posicion === 'DEF') && s.goles_encajados > 0) {
-    const n = Math.floor(s.goles_encajados / t.cadaX);
-    if (n > 0) {
-      const pts = n * t.encajado;
-      lineas.push({ label: `${s.goles_encajados} gol${s.goles_encajados > 1 ? 'es' : ''} encajado${s.goles_encajados > 1 ? 's' : ''}`, pts });
-      total += pts;
-    }
-  }
-
-  // Tarjetas
-  if (s.amarillas > 0) {
-    const pts = s.amarillas * t.am;
-    lineas.push({ label: `${s.amarillas} tarjeta${s.amarillas > 1 ? 's' : ''} amarilla${s.amarillas > 1 ? 's' : ''}`, pts });
-    total += pts;
-  }
-  if (s.rojas > 0) {
-    const pts = s.rojas * t.rj;
-    lineas.push({ label: `${s.rojas} tarjeta${s.rojas > 1 ? 's' : ''} roja${s.rojas > 1 ? 's' : ''}`, pts });
-    total += pts;
-  }
-
-  // Capitán
-  if (s.es_capitan && total > 0) {
-    const bonus = total; // doble = +total
-    lineas.push({ label: 'Capitán (×2)', pts: bonus });
-    total += bonus;
-  }
-
-  return { lineas, total };
-}
-
 // Valor inicial + precio tras cada jornada calculada (+ valor actual si ha cambiado después)
 function seriePrecio(jugador) {
   const serie = [
@@ -375,19 +299,11 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                   </summary>
                   <div className="space-y-3 px-2 pb-2">
                     {[...stats].reverse().map(s => {
-                      const { lineas, total } = desglosePuntos(jugador.posicion, {
-                        minutos: s.minutos,
-                        goles: s.goles ?? 0,
-                        goles_propio: s.goles_propio ?? 0,
-                        amarillas: s.amarillas ?? 0,
-                        rojas: s.rojas ?? 0,
-                        porteria_cero: s.porteria_cero,
-                        goles_encajados: s.goles_encajados ?? 0,
-                        es_capitan: s.es_capitan,
-                      });
-                      // Usar puntos guardados si están calculados, si no usar los calculados localmente
-                      const puntosFinales = s.puntos ?? total;
-  
+                      // El backend da el desglose con sus reglas; suma los puntos guardados si la
+                      // jornada está calculada y los provisionales si no
+                      const lineas = s.desglose ?? [];
+                      const puntosFinales = lineas.reduce((t, l) => t + l.puntos, 0);
+
                       return (
                         <details key={s.jornada} className="bg-gray-800 rounded-xl overflow-hidden group">
                           <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none hover:bg-gray-750 transition-colors">
@@ -408,7 +324,8 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                                 {s.goles > 0 && <span className="text-white">⚽×{s.goles}</span>}
                                 {s.amarillas > 0 && <span>🟨×{s.amarillas}</span>}
                                 {s.rojas > 0 && <span>🟥×{s.rojas}</span>}
-                                {s.porteria_cero && s.minutos >= 90 && <span title="Portería a cero">🧤</span>}
+                                {s.porteria_cero && s.minutos >= 60 && <span title="Portería a cero">🧤</span>}
+                                {s.victoria && <span title="Victoria del equipo">✅</span>}
                                 {s.es_capitan && <span title="Capitán">©</span>}
                               </div>
                               <span className={`font-bold text-base min-w-[2.5rem] text-right ${
@@ -430,10 +347,11 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                             {lineas.length === 0 ? (
                               <p className="text-xs text-gray-600">Sin puntuación este partido</p>
                             ) : (
+                              // Las líneas a 0 son informativas (p. ej. portería a cero sin llegar a 60 min)
                               lineas.map((l, i) => (
-                                <div key={i} className={`flex justify-between text-sm ${l.muted ? 'text-gray-600' : ''}`}>
-                                  <span className={l.muted ? 'text-gray-600' : 'text-gray-300'}>{l.label}</span>
-                                  {!l.muted && <PtsColor pts={l.pts} />}
+                                <div key={i} className="flex justify-between text-sm">
+                                  <span className={l.puntos === 0 ? 'text-gray-600' : 'text-gray-300'}>{l.concepto}</span>
+                                  {l.puntos !== 0 && <PtsColor pts={l.puntos} />}
                                 </div>
                               ))
                             )}
