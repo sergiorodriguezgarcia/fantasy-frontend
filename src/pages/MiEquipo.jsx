@@ -374,9 +374,13 @@ export default function MiEquipo() {
               </span>
             </div>
 
-            {!alineacionGuardada && (
+            {!alineacionGuardada ? (
               <p className="text-xs text-red-400 mb-3">
                 Sin alineación guardada: tu equipo no puntuará esta jornada
+              </p>
+            ) : equipo.alineacion_valida === false && (
+              <p className="text-xs text-red-400 mb-3">
+                Tu alineación guardada está incompleta (te falta algún titular): guarda una con 11 titulares o tu equipo no puntuará
               </p>
             )}
 
