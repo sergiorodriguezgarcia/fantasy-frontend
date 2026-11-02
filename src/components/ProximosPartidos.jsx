@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import CuentaAtras from './CuentaAtras';
+import Escudo from './Escudo';
+import PlantillaRealModal from './PlantillaRealModal';
 
 // "2026-10-25" → "Domingo, 25 oct" (a mediodía para que la zona horaria no cambie el día)
 function formatDia(fecha) {
@@ -10,30 +12,38 @@ function formatDia(fecha) {
   return txt.charAt(0).toUpperCase() + txt.slice(1);
 }
 
-// Escudo del club (URL de asturfutbol.es); si no hay o no carga, la inicial del equipo
-function Escudo({ src, nombre }) {
-  const [error, setError] = useState(false);
-  if (!src || error) {
-    return (
-      <span className="w-7 h-7 rounded-full bg-gray-700 text-gray-300 text-xs font-semibold flex items-center justify-center shrink-0 select-none">
-        {(nombre ?? '?').replace(/^[^A-Za-zÁÉÍÓÚÑ]+/, '').charAt(0).toUpperCase()}
-      </span>
-    );
-  }
+// Escudo + nombre de un equipo del partido. Si el club está dado de alta (id), es un botón que abre
+// su plantilla; visitante = escudo a la izquierda del nombre, local = a la derecha
+function Equipo({ id, nombre, escudo, visitante, onAbrir }) {
+  const contenido = visitante ? (
+    <>
+      <Escudo src={escudo} nombre={nombre} />
+      <span className="truncate" title={nombre}>{nombre}</span>
+    </>
+  ) : (
+    <>
+      <span className="truncate text-right" title={nombre}>{nombre}</span>
+      <Escudo src={escudo} nombre={nombre} />
+    </>
+  );
+  const cls = `flex items-center gap-2 min-w-0 ${visitante ? '' : 'justify-end'}`;
+
+  if (!id) return <span className={cls}>{contenido}</span>;
   return (
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setError(true)}
-      className="w-7 h-7 object-contain shrink-0"
-    />
+    <button
+      onClick={() => onAbrir({ id, nombre, escudo })}
+      className={`${cls} hover:text-brand-400 transition-colors`}
+      title={`Ver plantilla de ${nombre}`}
+    >
+      {contenido}
+    </button>
   );
 }
 
-// Partidos de la próxima jornada (o la que está en juego) agrupados por día, con escudos y hora
+// Partidos de la próxima jornada (o la que está en juego) agrupados por día, con escudos y hora.
+// Al pulsar un equipo se abre su plantilla
 export default function ProximosPartidos({ jornada }) {
+  const [equipo, setEquipo] = useState(null);
   const partidos = jornada?.partidos ?? [];
   if (partidos.length === 0) return null;
 
@@ -73,23 +83,19 @@ export default function ProximosPartidos({ jornada }) {
                   key={`${p.local}-${p.visitante}`}
                   className={`grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2 text-sm ${p.jugado ? 'opacity-50' : ''}`}
                 >
-                  <span className="flex items-center justify-end gap-2 min-w-0">
-                    <span className="truncate text-right" title={p.local}>{p.local}</span>
-                    <Escudo src={p.escudo_local} nombre={p.local} />
-                  </span>
+                  <Equipo id={p.id_local} nombre={p.local} escudo={p.escudo_local} onAbrir={setEquipo} />
                   <span className="w-12 text-center text-xs tabular-nums font-semibold text-brand-300">
                     {p.jugado ? 'Final' : p.hora ?? <span className="text-gray-500 font-normal">Por fijar</span>}
                   </span>
-                  <span className="flex items-center gap-2 min-w-0">
-                    <Escudo src={p.escudo_visitante} nombre={p.visitante} />
-                    <span className="truncate" title={p.visitante}>{p.visitante}</span>
-                  </span>
+                  <Equipo id={p.id_visitante} nombre={p.visitante} escudo={p.escudo_visitante} visitante onAbrir={setEquipo} />
                 </li>
               ))}
             </ul>
           </div>
         ))}
       </div>
+
+      {equipo && <PlantillaRealModal equipo={equipo} onClose={() => setEquipo(null)} />}
     </div>
   );
 }
