@@ -316,7 +316,7 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                                   {s.partido.local} {s.partido.goles_local}-{s.partido.goles_visitante} {s.partido.visitante}
                                 </span>
                               )}
-                              <span className="text-xs text-gray-500">{s.minutos}'</span>
+                              {jugador.posicion !== 'ENT' && <span className="text-xs text-gray-500">{s.minutos}'</span>}
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                               {/* Resumen icónico */}
@@ -326,6 +326,7 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                                 {s.rojas > 0 && <span>🟥×{s.rojas}</span>}
                                 {s.porteria_cero && s.minutos >= 60 && <span title="Portería a cero">🧤</span>}
                                 {s.victoria && <span title="Victoria del equipo">✅</span>}
+                                {s.empate && <span title="Empate del equipo">🤝</span>}
                                 {s.es_capitan && <span title="Capitán">©</span>}
                               </div>
                               <span className={`font-bold text-base min-w-[2.5rem] text-right ${

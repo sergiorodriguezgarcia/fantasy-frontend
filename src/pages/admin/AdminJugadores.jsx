@@ -3,7 +3,7 @@ import { api } from '../../lib/api';
 import PosBadge from '../../components/PosBadge';
 import Spinner from '../../components/Spinner';
 
-const POSICIONES = ['POR', 'DEF', 'MED', 'DEL'];
+const POSICIONES = ['POR', 'DEF', 'MED', 'DEL', 'ENT'];  // ENT = entrenador
 
 export default function AdminJugadores() {
   const [jugadores, setJugadores] = useState([]);

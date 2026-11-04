@@ -8,8 +8,8 @@ import JugadorModal from '../components/JugadorModal';
 import ClausulaChip from '../components/ClausulaChip';
 import AlineacionPuntos from '../components/AlineacionPuntos';
 
-const POSICIONES = ['POR', 'DEF', 'MED', 'DEL'];
-const POS_LABEL = { POR: 'Portero', DEF: 'Defensas', MED: 'Mediocampistas', DEL: 'Delanteros' };
+const POSICIONES = ['ENT', 'POR', 'DEF', 'MED', 'DEL'];
+const POS_LABEL = { ENT: 'Entrenador', POR: 'Portero', DEF: 'Defensas', MED: 'Mediocampistas', DEL: 'Delanteros' };
 
 export default function EquipoRival() {
   const { id } = useParams();
@@ -59,8 +59,9 @@ export default function EquipoRival() {
   if (loading) return <Spinner />;
   if (error) return <p className="text-red-400">{error}</p>;
 
-  const titulares = equipo.jugadores.filter(j => j.es_titular);
-  const suplentes = equipo.jugadores.filter(j => !j.es_titular);
+  // El entrenador no se alinea pero se muestra arriba, con los titulares
+  const titulares = equipo.jugadores.filter(j => j.es_titular || j.posicion === 'ENT');
+  const suplentes = equipo.jugadores.filter(j => !j.es_titular && j.posicion !== 'ENT');
   const valorPlantilla = equipo.jugadores.reduce((s, j) => s + parseInt(j.precio_actual), 0);
   const puntosTotal = equipo.jugadores.reduce((s, j) => s + parseInt(j.puntos_total), 0);
 

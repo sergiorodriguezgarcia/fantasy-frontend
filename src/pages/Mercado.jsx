@@ -330,7 +330,7 @@ export default function Mercado() {
               onChange={e => setFiltros(f => ({ ...f, posicion: e.target.value }))}
             >
               <option value="">Todas posiciones</option>
-              {['POR', 'DEF', 'MED', 'DEL'].map(p => (
+              {['POR', 'DEF', 'MED', 'DEL', 'ENT'].map(p => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>

@@ -6,6 +6,7 @@ import JugadorModal from './JugadorModal';
 import Spinner from './Spinner';
 
 const POSICIONES = [
+  { pos: 'ENT', titulo: 'Entrenador' },
   { pos: 'POR', titulo: 'Porteros' },
   { pos: 'DEF', titulo: 'Defensas' },
   { pos: 'MED', titulo: 'Centrocampistas' },

@@ -53,5 +53,6 @@
   .badge-DEF { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-blue-500 text-blue-950; }
   .badge-MED { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-green-500 text-green-950; }
   .badge-DEL { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-red-500 text-red-950; }
+  .badge-ENT { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-purple-500 text-purple-950; }
   .badge-null { @apply text-xs font-bold px-1.5 py-0.5 rounded bg-gray-600 text-gray-200; }
 }

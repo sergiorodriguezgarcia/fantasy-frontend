@@ -21,7 +21,7 @@ export default function AdminClausulas() {
         <h1 className="font-bold text-xl">Clausulazos</h1>
         <p className="text-sm text-gray-400 mt-1">
           Cláusulas pagadas por los usuarios. Se ejecutan al instante, sin aprobación.
-          Reglas: protección de 15 días tras cada fichaje, cláusula máxima de 150M,
+          Reglas: protección de 15 días tras cada fichaje, cláusula máxima de 150M (50M los entrenadores),
           subir la cláusula cuesta el 100% del incremento y máximo 4 clausulazos por usuario y jornada.
         </p>
       </div>

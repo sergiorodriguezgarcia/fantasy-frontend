@@ -58,7 +58,7 @@ export default function MiEquipo() {
   const [alineacion, setAlineacion] = useState(() => armarAlineacion('4-3-3', {}));
   const [capitan, setCapitan] = useState(null);
 
-  // Panel de cambio abierto: { tipo: 'hueco', pos, idx } | { tipo: 'banquillo', id } | null
+  // Panel de cambio abierto: { tipo: 'hueco', pos, idx } | { tipo: 'banquillo' | 'entrenador', id } | null
   const [seleccion, setSeleccion] = useState(null);
 
   function cargarOfertas() {
@@ -182,7 +182,10 @@ export default function MiEquipo() {
   if (error) return <p className="text-red-400">{error}</p>;
 
   const porId = new Map(equipo.jugadores.map(j => [j.id_jugador, j]));
-  const banquillo = equipo.jugadores.filter(j => !titulares.has(j.id_jugador));
+  // El entrenador no se alinea: va en su propio hueco, fuera del campo y del banquillo
+  const entrenador = equipo.jugadores.find(j => j.posicion === 'ENT') ?? null;
+  const banquillo = equipo.jugadores.filter(j => !titulares.has(j.id_jugador) && j.posicion !== 'ENT');
+  const numJugadores = equipo.jugadores.length - (entrenador ? 1 : 0);
   const valorPlantilla = equipo.jugadores.reduce((s, j) => s + parseInt(j.precio_actual), 0);
   const titularesCount = titulares.size;
   const alineacionCompleta = titularesCount === 11 && capitan && titulares.has(capitan);
@@ -221,7 +224,7 @@ export default function MiEquipo() {
             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 text-sm">
               <div><p className="text-gray-400">Saldo</p><p className="text-green-400 font-bold">{formatMoney(equipo.saldo_disponible)}</p></div>
               <div><p className="text-gray-400">Valor</p><p className="font-bold">{formatMoney(valorPlantilla)}</p></div>
-              <div><p className="text-gray-400">Plantilla</p><p className="font-bold">{equipo.jugadores.length} jug.</p></div>
+              <div><p className="text-gray-400">Plantilla</p><p className="font-bold">{numJugadores} jug.{entrenador && ' + ent.'}</p></div>
               <div title="Cláusulas que aún puedes pagar esta jornada">
                 <p className="text-gray-400">Clausulazos</p>
                 <p className="font-bold text-orange-300">{equipo.clausulazos_restantes ?? '-'}/4</p>
@@ -362,6 +365,35 @@ export default function MiEquipo() {
             }))}
           </Campo>
 
+          {/* Entrenador */}
+          <div className="card">
+            <p className="text-sm font-semibold text-gray-300 mb-3">Entrenador</p>
+            {entrenador ? (
+              <button
+                onClick={() => setSeleccion({ tipo: 'entrenador', id: entrenador.id_jugador })}
+                className="w-full flex items-center gap-3 text-left group"
+              >
+                <JugadorFoto
+                  id={entrenador.id_jugador}
+                  nombre={entrenador.nombre}
+                  size={48}
+                  forma="cromo"
+                  className="ring-1 ring-gray-700 group-hover:ring-brand-500 transition"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{entrenador.nombre}</p>
+                  <p className="text-xs text-gray-500 truncate">{entrenador.equipo_real} · {formatMoney(entrenador.precio_actual)}</p>
+                </div>
+                <PosBadge pos="ENT" />
+              </button>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Sin entrenador. Cada día salen 2 al mercado: suman 5 puntos si su equipo gana y 2 si empata.{' '}
+                <Link to="/mercado" className="text-brand-400 hover:underline">Ir al mercado</Link>
+              </p>
+            )}
+          </div>
+
           {/* Resumen y guardar */}
           <div className="card">
             <div className="text-sm mb-3">
@@ -488,11 +520,13 @@ function HuecoCampo({ pos, x, y, jugador, esCapitan, onClick }) {
 
 // ── Panel inferior de cambios ───────────────────────────────
 
-const CLAUSULA_MAX = 150_000_000;
+const CLAUSULA_MAX_JUGADOR = 150_000_000;
+const CLAUSULA_MAX_ENTRENADOR = 50_000_000;
 const COSTE_SUBIDA = 1;
 
 // Cláusula del jugador propio: estado de la protección y subida (cuesta el 100% del incremento)
 function SeccionClausula({ jugador, saldo, onSubir }) {
+  const CLAUSULA_MAX = jugador.posicion === 'ENT' ? CLAUSULA_MAX_ENTRENADOR : CLAUSULA_MAX_JUGADOR;
   const actual = Number(jugador.clausula_monto);
   const [editando, setEditando] = useState(false);
   const [nueva, setNueva] = useState(Math.min(CLAUSULA_MAX, actual + 5_000_000));
@@ -620,7 +654,8 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
           <div className="flex items-center gap-2">
             <PosBadge pos={pos} />
             <span className="font-semibold">
-              {esHueco ? (jugador ? 'Cambiar jugador' : `Elegir ${POS_LABEL[pos]?.toLowerCase() ?? 'jugador'}`) : 'Suplente'}
+              {esHueco ? (jugador ? 'Cambiar jugador' : `Elegir ${POS_LABEL[pos]?.toLowerCase() ?? 'jugador'}`)
+                : pos === 'ENT' ? 'Entrenador' : 'Suplente'}
             </span>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">✕</button>
@@ -701,7 +736,11 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
 
         {/* Opciones de cambio */}
         <div className="p-4">
-          {bloqueada ? (
+          {pos === 'ENT' ? (
+            <p className="text-sm text-gray-500">
+              El entrenador no se alinea: suma 5 puntos si su equipo gana y 2 si empata, siempre que esté en tu plantilla.
+            </p>
+          ) : bloqueada ? (
             <p className="text-sm text-gray-500">🔒 Alineaciones cerradas hasta que se calcule la jornada en juego.</p>
           ) : !pos || !huecosPos.length ? (
             <p className="text-sm text-gray-500">Este jugador no tiene posición asignada y no puede alinearse.</p>

@@ -4,8 +4,8 @@ import { Campo, POSICIONES, coordenadas, nombreCorto } from './Campo';
 
 /**
  * Alineación de un equipo en una jornada dibujada en el campo, con los puntos de cada jugador en
- * la esquina de su foto. Recibe { formacion, campo, banquillo } del backend: en `campo` ya están
- * aplicadas las sustituciones (`entra_por`) y el ×2 del capitán (`puntos_campo`).
+ * la esquina de su foto. Recibe { formacion, campo, banquillo, entrenador } del backend: en `campo`
+ * ya están aplicadas las sustituciones (`entra_por`) y el ×2 del capitán (`puntos_campo`).
  */
 export default function AlineacionPuntos({ alineacion, onVerFicha }) {
   if (!alineacion?.campo?.length) {
@@ -16,10 +16,28 @@ export default function AlineacionPuntos({ alineacion, onVerFicha }) {
     );
   }
 
-  const { formacion, campo, banquillo } = alineacion;
+  const { formacion, campo, banquillo, entrenador } = alineacion;
 
   return (
     <div className="space-y-3">
+      {entrenador && (
+        <button
+          onClick={onVerFicha && (() => onVerFicha(entrenador.id_jugador))}
+          className="card w-full flex items-center gap-3 text-left"
+        >
+          <span className="relative">
+            <JugadorFoto id={entrenador.id_jugador} nombre={entrenador.nombre} size={48} forma="cromo" className="ring-1 ring-gray-700" />
+            <PuntosEntrenador entrenador={entrenador} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-gray-500">Entrenador</p>
+            <p className="font-medium text-sm truncate">{entrenador.nombre}</p>
+            <p className="text-xs text-gray-500 truncate">{entrenador.equipo_real} · {resultadoEntrenador(entrenador)}</p>
+          </div>
+          <PosBadge pos="ENT" />
+        </button>
+      )}
+
       <Campo>
         {POSICIONES.flatMap(pos => {
           const jugadores = campo.filter(j => j.posicion === pos);
@@ -70,6 +88,23 @@ export default function AlineacionPuntos({ alineacion, onVerFicha }) {
 }
 
 const jugo = j => (j.minutos_jugados ?? 0) > 0;
+
+// El entrenador no juega minutos: puntúa si su equipo jugó (tiene puntos calculados)
+const resultadoEntrenador = e => e.puntos == null ? 'Su equipo no jugó'
+  : e.victoria ? 'Victoria' : e.empate ? 'Empate' : 'Derrota';
+
+function PuntosEntrenador({ entrenador }) {
+  const p = entrenador.puntos;
+  const color = p == null ? 'bg-gray-600 text-gray-200' : p > 0 ? 'bg-green-500 text-green-950' : 'bg-gray-400 text-gray-900';
+  return (
+    <span
+      className={`absolute -top-1.5 -left-1.5 min-w-[22px] h-[22px] px-1 rounded-full text-[11px] font-black flex items-center justify-center shadow ${color}`}
+      title={p == null ? 'Su equipo no jugó' : `${p} puntos`}
+    >
+      {p ?? '–'}
+    </span>
+  );
+}
 
 // Puntos en la esquina superior izquierda de la foto ("–" si no jugó)
 function PuntosBadge({ jugador, puntos }) {
