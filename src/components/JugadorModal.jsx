@@ -32,6 +32,7 @@ function BloqueClausula({ jugador, onPagada }) {
   const { clausula_monto, clausula_activa_desde } = jugador.equipo_fantasy;
   const dias = diasProteccion(clausula_activa_desde);
   const restantes = jugador.clausulazos_restantes;
+  const cerrados = jugador.clausulazos_cerrados;
 
   if (dias > 0) {
     return (
@@ -75,13 +76,17 @@ function BloqueClausula({ jugador, onPagada }) {
       ) : (
         <button
           onClick={() => setConfirmando(true)}
-          disabled={restantes === 0}
+          disabled={restantes === 0 || !!cerrados}
           className="w-full text-sm font-bold py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           🔓 Pagar cláusula · {formatMoney(clausula_monto)}
         </button>
       )}
-      {restantes !== undefined && (
+      {cerrados ? (
+        <p className="text-[11px] text-gray-500 text-center">
+          Cerrados hasta que se calcule la jornada {cerrados.numero} (cierran 24 h antes de su primer partido)
+        </p>
+      ) : restantes !== undefined && (
         <p className="text-[11px] text-gray-500 text-center">
           {restantes === 0
             ? 'Ya has pagado el máximo de cláusulas esta jornada'
