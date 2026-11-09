@@ -236,6 +236,8 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
   const jugados = esEnt ? stats.length : stats.filter(s => s.minutos > 0).length;
   const media = jugados ? (totalPuntos / jugados).toFixed(1).replace('.', ',').replace(',0', '') : '–';
   const totalGoles = stats.reduce((s, e) => s + (e.goles ?? 0), 0);
+  const ultima = jornadas.at(-1);
+  const colorPts = v => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-gray-300');
 
   const puntosPrecio = jugador ? seriePrecio(jugador) : [];
   const variacion = puntosPrecio.length > 1 && puntosPrecio[0].precio > 0
@@ -359,19 +361,28 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                 </div>
               )}
 
-              {/* Resumen de la temporada */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: 'Puntos', value: totalPuntos, color: totalPuntos > 0 ? 'text-green-400' : totalPuntos < 0 ? 'text-red-400' : 'text-white' },
-                  { label: 'Media', value: media, color: 'text-white' },
-                  { label: esEnt ? 'Jornadas' : 'Jugados', value: jugados, color: 'text-white' },
-                  { label: 'Goles', value: totalGoles, color: 'text-white' },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="bg-gray-800 rounded-lg p-2 text-center">
-                    <p className="text-[11px] text-gray-500 mb-0.5">{label}</p>
-                    <p className={`font-bold ${color}`}>{value}</p>
-                  </div>
-                ))}
+              {/* Resumen de puntos: lo primero que se ve */}
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { label: 'Puntos totales', value: totalPuntos, color: colorPts(totalPuntos) },
+                    {
+                      label: ultima ? `Jornada ${ultima.jornada}` : 'Última jornada',
+                      value: ultima?.puntos == null ? '–' : `${ultima.puntos > 0 ? '+' : ''}${ultima.puntos}`,
+                      color: colorPts(ultima?.puntos),
+                    },
+                    { label: 'Media', value: media, color: 'text-gray-200' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="bg-gray-800 rounded-lg py-2">
+                      <p className="text-[11px] text-gray-500">{label}</p>
+                      <p className={`text-2xl font-extrabold tabular-nums leading-tight ${color}`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 text-center">
+                  {esEnt ? `${jugados} jornada${jugados !== 1 ? 's' : ''}` : `${jugados} partido${jugados !== 1 ? 's' : ''} jugado${jugados !== 1 ? 's' : ''}`}
+                  {!esEnt && ` · ${totalGoles} gol${totalGoles !== 1 ? 'es' : ''}`}
+                </p>
               </div>
 
               {/* Pestañas */}

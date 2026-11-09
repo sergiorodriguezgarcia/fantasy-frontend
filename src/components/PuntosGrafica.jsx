@@ -1,12 +1,12 @@
 // Barras con los puntos del jugador jornada a jornada: verde si suma, rojo si resta y un guion en
 // las que no jugó (puntos null). Con onSelect, cada columna se puede pulsar para ver su desglose.
 // jornadas: [{ jornada: 3, puntos: 7, capitan: false }, ...]
-// compacta: versión mini sin ejes (últimas jornadas en el panel de Mi Equipo)
-export default function PuntosGrafica({ jornadas, sel = null, onSelect, compacta = false }) {
+// compacta: versión mini sin ejes ni valores. altura: alto del viewBox en la versión normal
+export default function PuntosGrafica({ jornadas, sel = null, onSelect, compacta = false, altura = 140 }) {
   if (!jornadas?.length) return null;
 
   const W = compacta ? 110 : 320;
-  const H = compacta ? 32 : 140;
+  const H = compacta ? 32 : altura;
   const PAD = compacta
     ? { top: 2, right: 0, bottom: 2, left: 0 }
     : { top: 16, right: 4, bottom: 18, left: 4 };

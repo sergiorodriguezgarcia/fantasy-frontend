@@ -676,24 +676,24 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
                 <p className="text-xs text-gray-400 truncate">
                   {jugador.equipo_real} · <span className="text-green-400 font-bold">{formatMoney(jugador.precio_actual)}</span>
                 </p>
-                <ResumenPuntos jugador={jugador} />
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <PuntosGrafica
-                compacta
-                jornadas={jugador.ultimas_jornadas ?? []}
-              />
-              <span className="text-[11px] text-gray-500 flex-1">
-                {jugador.ultimas_jornadas?.length ? `Últimas ${jugador.ultimas_jornadas.length} jornadas` : 'Sin jornadas calculadas'}
-              </span>
-              <button
-                onClick={() => onVerFicha(jugador.id_jugador)}
-                className="text-xs font-semibold text-brand-400 hover:underline shrink-0"
-              >
-                Ficha completa →
-              </button>
+            <ResumenPuntos jugador={jugador} />
+
+            <div className="bg-gray-800/60 rounded-lg px-3 pt-2 pb-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                  {jugador.ultimas_jornadas?.length ? `Últimas ${jugador.ultimas_jornadas.length} jornadas` : 'Sin jornadas calculadas'}
+                </span>
+                <button
+                  onClick={() => onVerFicha(jugador.id_jugador)}
+                  className="text-xs font-semibold text-brand-400 hover:underline shrink-0"
+                >
+                  Ficha completa →
+                </button>
+              </div>
+              <PuntosGrafica jornadas={jugador.ultimas_jornadas ?? []} altura={90} />
             </div>
 
             <div className={`grid gap-2 ${esHueco && !bloqueada ? 'grid-cols-3' : 'grid-cols-1'}`}>
@@ -813,23 +813,33 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
   );
 }
 
-// Puntos totales y de la última jornada calculada (– si no jugó)
+// Puntos en grande: totales, última jornada calculada (– si no jugó) y media de las últimas jornadas
 function ResumenPuntos({ jugador }) {
   const total = jugador.puntos_total ?? 0;
-  const ultima = jugador.ultimas_jornadas?.at(-1);
-  const color = v => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-gray-400');
+  const ultimas = jugador.ultimas_jornadas ?? [];
+  const ultima = ultimas.at(-1);
+  const jugadas = ultimas.filter(u => u.puntos != null);
+  const media = jugadas.length
+    ? (jugadas.reduce((t, u) => t + u.puntos, 0) / jugadas.length).toFixed(1).replace('.', ',').replace(',0', '')
+    : '–';
+  const color = v => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-gray-300');
+  const signo = v => (v == null ? '–' : `${v > 0 ? '+' : ''}${v}`);
+
   return (
-    <p className="text-xs text-gray-400 mt-0.5">
-      <span className={`font-bold ${color(total)}`}>{total} pts</span>
-      {ultima && (
-        <>
-          {' · '}J{ultima.jornada}{' '}
-          <span className={`font-bold ${color(ultima.puntos)}`}>
-            {ultima.puntos == null ? '–' : `${ultima.puntos > 0 ? '+' : ''}${ultima.puntos}`}
-          </span>
-        </>
-      )}
-    </p>
+    <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="bg-gray-800 rounded-lg py-2">
+        <p className="text-[11px] text-gray-500">Puntos totales</p>
+        <p className={`text-2xl font-extrabold tabular-nums leading-tight ${color(total)}`}>{total}</p>
+      </div>
+      <div className="bg-gray-800 rounded-lg py-2">
+        <p className="text-[11px] text-gray-500">{ultima ? `Jornada ${ultima.jornada}` : 'Última jornada'}</p>
+        <p className={`text-2xl font-extrabold tabular-nums leading-tight ${color(ultima?.puntos)}`}>{signo(ultima?.puntos)}</p>
+      </div>
+      <div className="bg-gray-800 rounded-lg py-2">
+        <p className="text-[11px] text-gray-500">Media últimas</p>
+        <p className="text-2xl font-extrabold tabular-nums leading-tight text-gray-200">{media}</p>
+      </div>
+    </div>
   );
 }
 
