@@ -4,6 +4,7 @@ import { api, formatMoney } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import Spinner from '../components/Spinner';
 import ProximosPartidos from '../components/ProximosPartidos';
+import ClasificacionLiga from '../components/ClasificacionLiga';
 
 // Máximo de jugadores por plantilla (el backend no deja fichar más: services/plantilla.js)
 const MAX_JUGADORES = 15;
@@ -14,6 +15,7 @@ export default function Inicio() {
   const [jornada, setJornada] = useState(null);
   const [proxima, setProxima] = useState(null);
   const [miEquipo, setMiEquipo] = useState(null);
+  const [liga, setLiga] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +31,8 @@ export default function Inicio() {
       setProxima(prox);
       setMiEquipo(eq);
     }).finally(() => setLoading(false));
+    // La clasificación de la liga viene de la federación y puede tardar: no bloquea la pantalla
+    api.clasificacionLiga().then(setLiga).catch(() => {});
   }, [user]);
 
   if (user?.rol === 'admin') return <Navigate to="/admin" replace />;
@@ -51,86 +55,31 @@ export default function Inicio() {
               {formatMoney(miEquipo?.saldo_disponible ?? 0)}
             </p>
           </div>
-          <div>
+          <Link to="/clasificacion" className="hover:text-brand-400 transition-colors">
             <p className="text-gray-400">Posición</p>
-            <p className="text-white font-bold text-lg">
+            <p className="font-bold text-lg">
               {miPuesto > 0 ? `${miPuesto}º` : '—'}
             </p>
-          </div>
-          <div>
+          </Link>
+          <Link to="/mi-equipo" className="hover:text-brand-400 transition-colors">
             <p className="text-gray-400">Jugadores</p>
-            <p className={`font-bold text-lg ${numJugadores >= MAX_JUGADORES ? 'text-yellow-400' : 'text-white'}`}>
+            <p className={`font-bold text-lg ${numJugadores >= MAX_JUGADORES ? 'text-yellow-400' : ''}`}>
               {numJugadores}/{MAX_JUGADORES}
             </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Jornada actual */}
-      {jornada && (
-        <div className="card">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-400 text-xs uppercase tracking-wide">Jornada</p>
-              <p className="font-bold">Jornada {jornada.numero}</p>
-            </div>
-            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
-              jornada.estado === 'EN_CURSO' ? 'bg-green-900 text-green-300' :
-              jornada.estado === 'CALCULADA' ? 'bg-blue-900 text-blue-300' :
-              'bg-gray-800 text-gray-400'
-            }`}>
-              {jornada.estado}
-            </span>
-          </div>
-          <Link to="/jornada" className="text-brand-400 text-sm mt-2 block hover:underline">
-            Ver puntuaciones →
           </Link>
         </div>
-      )}
+        {jornada && (
+          <Link to="/jornada" className="text-brand-400 text-sm mt-3 block hover:underline">
+            Puntuaciones de la jornada {jornada.numero} →
+          </Link>
+        )}
+      </div>
 
       {/* Partidos de la próxima jornada */}
       <ProximosPartidos jornada={proxima} />
 
-      {/* Top 5 clasificación */}
-      <div className="card">
-        <h2 className="font-bold mb-3 flex justify-between">
-          <span>Clasificación</span>
-          <Link to="/clasificacion" className="text-brand-400 text-sm font-normal hover:underline">Ver todo →</Link>
-        </h2>
-        {clasificacion.length === 0 ? (
-          <p className="text-gray-500 text-sm">Aún no hay puntuaciones.</p>
-        ) : (
-          <ul className="space-y-2">
-            {clasificacion.slice(0, 5).map((e, i) => (
-              <li key={e.id} className={`flex justify-between items-center text-sm py-1 ${
-                e.propietario === user?.nombre ? 'text-brand-300' : ''
-              }`}>
-                <span className="flex gap-2 items-center">
-                  <span className="text-gray-500 w-4">{i + 1}.</span>
-                  <span className="font-medium">{e.nombre}</span>
-                </span>
-                <span className="font-bold">{e.puntos_total} pts</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Accesos rápidos */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link to="/mercado" className="card text-center hover:border-brand-700 transition-colors">
-          <p className="text-2xl">🔄</p>
-          <p className="font-semibold mt-1">Mercado</p>
-          <p className="text-xs text-gray-500">Subastas activas</p>
-        </Link>
-        <Link to="/mi-equipo" className="card text-center hover:border-brand-700 transition-colors">
-          <p className="text-2xl">👕</p>
-          <p className="font-semibold mt-1">Mi Equipo</p>
-          <p className="text-xs text-gray-500">
-            {numJugadores >= MAX_JUGADORES ? 'Plantilla completa' : `${numJugadores}/${MAX_JUGADORES} jugadores`}
-          </p>
-        </Link>
-      </div>
+      {/* Clasificación real de la liga */}
+      <ClasificacionLiga filas={liga} />
     </div>
   );
 }

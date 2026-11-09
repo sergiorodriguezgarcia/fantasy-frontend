@@ -111,6 +111,7 @@ export const api = {
   clasificacion: (liga) =>
     request('/clasificacion' + (liga ? `?liga=${liga}` : '')),
   clasificacionJornada: (n) => request(`/clasificacion/jornada/${n}`),
+  clasificacionLiga: () => request('/clasificacion/liga'),
 
   // Admin
   admin: {
