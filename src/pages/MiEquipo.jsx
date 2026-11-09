@@ -5,6 +5,7 @@ import PosBadge from '../components/PosBadge';
 import JugadorFoto from '../components/JugadorFoto';
 import Spinner from '../components/Spinner';
 import JugadorModal from '../components/JugadorModal';
+import PuntosGrafica from '../components/PuntosGrafica';
 import { diasProteccion } from '../components/ClausulaChip';
 import { Campo, DISPOSICION, POSICIONES, nombreCorto } from '../components/Campo';
 
@@ -211,7 +212,7 @@ export default function MiEquipo() {
           onClose={() => setSeleccion(null)}
           onPonerEnHueco={ponerEnHueco}
           onCapitan={alternarCapitan}
-          onVerFicha={id => setJugadorModal(id)}
+          onVerFicha={id => { setSeleccion(null); setJugadorModal(id); }}
           onVender={vender}
         />
       )}
@@ -550,27 +551,28 @@ function SeccionClausula({ jugador, saldo, onSubir }) {
   }
 
   return (
-    <div className="bg-gray-800/60 rounded-lg p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs text-gray-400">Cláusula</p>
-          <p className="font-bold text-orange-300">{formatMoney(actual)}</p>
-        </div>
-        <p className="text-[11px] text-right text-gray-400">
-          {dias > 0 ? `🔒 Protegido ${dias} día${dias > 1 ? 's' : ''} más` : '🔓 Cualquiera puede pagarla ya'}
+    <div className="bg-gray-800/60 rounded-lg px-3 py-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <p className="text-sm flex-1 min-w-0">
+          <span className="text-gray-400">Cláusula </span>
+          <span className="font-bold text-orange-300">{formatMoney(actual)}</span>
+          <span className="text-[11px] text-gray-500">
+            {' · '}{dias > 0 ? `🔒 ${dias} día${dias > 1 ? 's' : ''}` : '🔓 Desprotegido'}
+          </span>
         </p>
+        {actual >= CLAUSULA_MAX ? (
+          <span className="text-[11px] text-gray-500">Al máximo</span>
+        ) : !editando && (
+          <button
+            onClick={() => setEditando(true)}
+            className="text-xs px-3 py-1 rounded-lg font-semibold bg-gray-700 text-gray-200 hover:bg-gray-600 shrink-0"
+          >
+            Subir
+          </button>
+        )}
       </div>
 
-      {actual >= CLAUSULA_MAX ? (
-        <p className="text-xs text-gray-500">Cláusula al máximo ({formatMoney(CLAUSULA_MAX)})</p>
-      ) : !editando ? (
-        <button
-          onClick={() => setEditando(true)}
-          className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-gray-700 text-gray-200 hover:bg-gray-600"
-        >
-          Subir cláusula
-        </button>
-      ) : (
+      {editando && actual < CLAUSULA_MAX && (
         <div className="space-y-2">
           <div className="flex gap-1.5">
             {[5_000_000, 10_000_000, 25_000_000].map(inc => (
@@ -671,52 +673,55 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
                   {capitan === jugador.id_jugador && <span className="text-yellow-400 mr-1">©</span>}
                   {jugador.nombre}
                 </p>
-                <p className="text-xs text-gray-400">{jugador.equipo_real}</p>
-                <p className="text-sm text-green-400 font-bold">{formatMoney(jugador.precio_actual)}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {jugador.equipo_real} · <span className="text-green-400 font-bold">{formatMoney(jugador.precio_actual)}</span>
+                </p>
+                <ResumenPuntos jugador={jugador} />
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {esHueco && !bloqueada && (
-                <button
-                  onClick={() => onCapitan(jugador.id_jugador)}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                    capitan === jugador.id_jugador
-                      ? 'bg-yellow-500 text-yellow-950'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  }`}
-                >
-                  {capitan === jugador.id_jugador ? '© Capitán' : 'Hacer capitán'}
-                </button>
-              )}
+            <div className="flex items-center gap-3">
+              <PuntosGrafica
+                compacta
+                jornadas={jugador.ultimas_jornadas ?? []}
+              />
+              <span className="text-[11px] text-gray-500 flex-1">
+                {jugador.ultimas_jornadas?.length ? `Últimas ${jugador.ultimas_jornadas.length} jornadas` : 'Sin jornadas calculadas'}
+              </span>
               <button
                 onClick={() => onVerFicha(jugador.id_jugador)}
-                className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700"
+                className="text-xs font-semibold text-brand-400 hover:underline shrink-0"
               >
-                Ver ficha
-              </button>
-              {esHueco && !bloqueada && (
-                <button
-                  onClick={() => onPonerEnHueco(seleccion.pos, seleccion.idx, null)}
-                  className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700"
-                >
-                  Mandar al banquillo
-                </button>
-              )}
-              <button
-                onClick={() => setConfirmarVenta(v => !v)}
-                className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-gray-800 text-orange-400 hover:bg-orange-900/40"
-              >
-                Vender
+                Ficha completa →
               </button>
             </div>
 
-            <SeccionClausula
-              key={jugador.id_plantilla}
-              jugador={jugador}
-              saldo={saldo}
-              onSubir={onSubirClausula}
-            />
+            <div className={`grid gap-2 ${esHueco && !bloqueada ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              {esHueco && !bloqueada && (
+                <>
+                  <BotonAccion
+                    onClick={() => onCapitan(jugador.id_jugador)}
+                    className={capitan === jugador.id_jugador
+                      ? 'bg-yellow-500 text-yellow-950 hover:bg-yellow-400'
+                      : 'bg-gray-800 text-gray-200 hover:bg-gray-700'}
+                    icono="©"
+                    texto={capitan === jugador.id_jugador ? 'Es capitán' : 'Capitán'}
+                  />
+                  <BotonAccion
+                    onClick={() => onPonerEnHueco(seleccion.pos, seleccion.idx, null)}
+                    className="bg-gray-800 text-gray-200 hover:bg-gray-700"
+                    icono="⇩"
+                    texto="Banquillo"
+                  />
+                </>
+              )}
+              <BotonAccion
+                onClick={() => setConfirmarVenta(v => !v)}
+                className={confirmarVenta ? 'bg-orange-900/60 text-orange-300' : 'bg-gray-800 text-orange-400 hover:bg-orange-900/40'}
+                icono="€"
+                texto="Vender"
+              />
+            </div>
 
             {confirmarVenta && (
               <div className="flex items-center gap-2 bg-gray-800/60 rounded-lg px-3 py-2">
@@ -731,6 +736,13 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
                 </button>
               </div>
             )}
+
+            <SeccionClausula
+              key={jugador.id_plantilla}
+              jugador={jugador}
+              saldo={saldo}
+              onSubir={onSubirClausula}
+            />
           </div>
         )}
 
@@ -801,6 +813,38 @@ function PanelCambio({ seleccion, alineacion, porId, banquillo, capitan, bloquea
   );
 }
 
+// Puntos totales y de la última jornada calculada (– si no jugó)
+function ResumenPuntos({ jugador }) {
+  const total = jugador.puntos_total ?? 0;
+  const ultima = jugador.ultimas_jornadas?.at(-1);
+  const color = v => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-gray-400');
+  return (
+    <p className="text-xs text-gray-400 mt-0.5">
+      <span className={`font-bold ${color(total)}`}>{total} pts</span>
+      {ultima && (
+        <>
+          {' · '}J{ultima.jornada}{' '}
+          <span className={`font-bold ${color(ultima.puntos)}`}>
+            {ultima.puntos == null ? '–' : `${ultima.puntos > 0 ? '+' : ''}${ultima.puntos}`}
+          </span>
+        </>
+      )}
+    </p>
+  );
+}
+
+function BotonAccion({ onClick, className, icono, texto }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-xs font-semibold transition-colors ${className}`}
+    >
+      <span className="text-base leading-none">{icono}</span>
+      {texto}
+    </button>
+  );
+}
+
 function FilaOpcion({ jugador, accion, onClick }) {
   return (
     <li>
@@ -813,6 +857,7 @@ function FilaOpcion({ jugador, accion, onClick }) {
           <p className="text-sm font-medium truncate">{jugador.nombre}</p>
           <p className="text-xs text-gray-500 truncate">{jugador.equipo_real} · {formatMoney(jugador.precio_actual)}</p>
         </div>
+        <span className="text-xs font-bold text-gray-300 tabular-nums shrink-0">{jugador.puntos_total ?? 0} pts</span>
         <span className="text-brand-400 font-bold text-lg">{accion}</span>
       </button>
     </li>

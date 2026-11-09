@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api, formatMoney } from '../lib/api';
-import { useAuth } from '../lib/auth';
 import PosBadge from './PosBadge';
 import JugadorFoto from './JugadorFoto';
 import { diasProteccion } from './ClausulaChip';
 import Spinner from './Spinner';
 import PrecioGrafica from './PrecioGrafica';
+import PuntosGrafica from './PuntosGrafica';
 
 // Valor inicial + precio tras cada jornada calculada (+ valor actual si ha cambiado después)
 function seriePrecio(jugador) {
@@ -97,14 +97,103 @@ function BloqueClausula({ jugador, onPagada }) {
   );
 }
 
+// Puntos de una jornada: suma del desglose del backend (los guardados si la jornada está calculada y
+// los provisionales si no)
+function puntosJornada(s) {
+  return (s.desglose ?? []).reduce((t, l) => t + l.puntos, 0);
+}
+
+function PtsPill({ pts }) {
+  if (pts == null) return <span className="min-w-[2.75rem] text-center text-sm font-bold text-gray-600">–</span>;
+  const cls = pts > 0 ? 'bg-green-900/60 text-green-300' : pts < 0 ? 'bg-red-900/60 text-red-300' : 'bg-gray-800 text-gray-400';
+  return (
+    <span className={`min-w-[2.75rem] text-center text-sm font-bold tabular-nums px-2 py-0.5 rounded-full ${cls}`}>
+      {pts > 0 ? '+' : ''}{pts}
+    </span>
+  );
+}
+
+// Historial de puntos: gráfica de barras + lista de jornadas (la más reciente arriba). Al pulsar una
+// barra o una fila se despliega su desglose; solo una a la vez
+function HistorialPuntos({ jugador, jornadas, sel, onSel }) {
+  const esEnt = jugador.posicion === 'ENT';
+
+  return (
+    <div className="space-y-3">
+      <PuntosGrafica
+        jornadas={jornadas.map(j => ({ jornada: j.jornada, puntos: j.puntos, capitan: j.stat?.es_capitan }))}
+        sel={sel}
+        onSelect={onSel}
+      />
+
+      <ul className="space-y-1.5">
+        {[...jornadas].reverse().map(({ jornada, puntos, stat: s }) => {
+          const abierta = sel === jornada;
+          return (
+            <li key={jornada} className={`rounded-xl overflow-hidden transition-colors ${abierta ? 'bg-gray-800' : 'bg-gray-800/50'}`}>
+              <button
+                onClick={() => onSel(abierta ? null : jornada)}
+                disabled={!s}
+                className="w-full flex items-center gap-3 px-3 py-2 text-left disabled:cursor-default"
+              >
+                <span className="text-[11px] font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full shrink-0">
+                  J{jornada}
+                </span>
+                <div className="flex-1 min-w-0">
+                  {!s ? (
+                    <p className="text-xs text-gray-500">No jugó</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-300 truncate">
+                        {s.partido
+                          ? `${s.partido.local} ${s.partido.goles_local}-${s.partido.goles_visitante} ${s.partido.visitante}`
+                          : 'Partido sin acta'}
+                      </p>
+                      <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                        {!esEnt && <span>{s.minutos}'</span>}
+                        {s.goles > 0 && <span className="text-gray-300">⚽{s.goles > 1 ? `×${s.goles}` : ''}</span>}
+                        {s.amarillas > 0 && <span>🟨{s.amarillas > 1 ? `×${s.amarillas}` : ''}</span>}
+                        {s.rojas > 0 && <span>🟥</span>}
+                        {s.es_capitan && <span className="text-yellow-400 font-bold" title="Capitán">©</span>}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <PtsPill pts={puntos} />
+              </button>
+
+              {abierta && s && (
+                <div className="border-t border-gray-700 mx-3 py-2 space-y-1.5">
+                  {(s.desglose ?? []).length === 0 ? (
+                    <p className="text-xs text-gray-600">Sin puntuación este partido</p>
+                  ) : (
+                    // Las líneas a 0 son informativas (p. ej. portería a cero sin llegar a 60 min)
+                    s.desglose.map((l, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className={l.puntos === 0 ? 'text-gray-600' : 'text-gray-300'}>{l.concepto}</span>
+                        {l.puntos !== 0 && <PtsColor pts={l.puntos} />}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export default function JugadorModal({ idJugador, onClose, showOffer = true, onCambio }) {
-  const { user } = useAuth();
   const [jugador, setJugador] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [ofertaMonto, setOfertaMonto] = useState('');
   const [ofertaMsg, setOfertaMsg] = useState('');
   const [clausulaMsg, setClausulaMsg] = useState('');
+  const [pestana, setPestana] = useState('puntos');
+  const [sel, setSel] = useState(null);
 
   function recargar() {
     api.jugador(idJugador).then(setJugador).catch(() => {});
@@ -117,6 +206,8 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
     setOfertaMonto('');
     setOfertaMsg('');
     setClausulaMsg('');
+    setPestana('puntos');
+    setSel(null);
     api.jugador(idJugador)
       .then(setJugador)
       .catch(e => setError(e.message))
@@ -133,10 +224,19 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
   if (!idJugador) return null;
 
   const stats = jugador?.estadisticas ?? [];
-  const totalPuntos = stats.reduce((s, e) => s + (e.puntos ?? 0), 0);
+  const esEnt = jugador?.posicion === 'ENT';
+  // Una entrada por jornada jugada (o en juego con datos); null en las que no disputó
+  const porJornada = new Map(stats.map(s => [s.jornada, s]));
+  const numeros = [...new Set([...(jugador?.jornadas_disputadas ?? []), ...porJornada.keys()])].sort((a, b) => a - b);
+  const jornadas = numeros.map(n => {
+    const s = porJornada.get(n);
+    return { jornada: n, stat: s, puntos: s ? puntosJornada(s) : null };
+  });
+  const totalPuntos = jornadas.reduce((t, j) => t + (j.puntos ?? 0), 0);
+  const jugados = esEnt ? stats.length : stats.filter(s => s.minutos > 0).length;
+  const media = jugados ? (totalPuntos / jugados).toFixed(1).replace('.', ',').replace(',0', '') : '–';
   const totalGoles = stats.reduce((s, e) => s + (e.goles ?? 0), 0);
-  const totalAm = stats.reduce((s, e) => s + (e.amarillas ?? 0), 0);
-  const totalRj = stats.reduce((s, e) => s + (e.rojas ?? 0), 0);
+
   const puntosPrecio = jugador ? seriePrecio(jugador) : [];
   const variacion = puntosPrecio.length > 1 && puntosPrecio[0].precio > 0
     ? Math.round(((puntosPrecio.at(-1).precio - puntosPrecio[0].precio) / puntosPrecio[0].precio) * 100)
@@ -154,14 +254,24 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
         {/* Header */}
         <div className="flex items-start justify-between p-4 border-b border-gray-800 shrink-0">
           {loading || !jugador ? (
-            <div className="h-10 w-40 bg-gray-800 rounded animate-pulse" />
+            <div className="h-16 w-48 bg-gray-800 rounded animate-pulse" />
           ) : (
-            <div className="flex items-center gap-3">
-              <JugadorFoto id={jugador.id} nombre={jugador.nombre} size={56} />
-              <div>
-                <PosBadge pos={jugador.posicion} />
-                <h2 className="font-bold text-lg leading-tight">{jugador.nombre}</h2>
-                <p className="text-sm text-gray-400">{jugador.equipo_real}</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <JugadorFoto id={jugador.id} nombre={jugador.nombre} size={64} />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <PosBadge pos={jugador.posicion} />
+                  <h2 className="font-bold text-lg leading-tight truncate">{jugador.nombre}</h2>
+                </div>
+                <p className="text-sm text-gray-400 truncate">{jugador.equipo_real}</p>
+                <p className="text-sm mt-0.5">
+                  <span className="text-green-400 font-bold">{formatMoney(jugador.precio_actual)}</span>
+                  {variacion !== 0 && (
+                    <span className={`ml-2 text-xs font-bold ${variacion > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {variacion > 0 ? '▲ +' : '▼ '}{variacion}%
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           )}
@@ -181,15 +291,13 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
           {jugador && !loading && (
             <div className="p-4 space-y-4">
 
-              {/* Propietario y cláusula */}
-              {jugador.equipo_fantasy && (
+              {/* Propietario y cláusula (los propios se gestionan desde Mi Equipo) */}
+              {jugador.equipo_fantasy && !jugador.es_mio && (
                 <div className="bg-gray-800 rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-gray-400">
                       Propietario:{' '}
-                      <span className="text-white font-medium">
-                        {jugador.es_mio ? 'Tu equipo' : jugador.equipo_fantasy.nombre}
-                      </span>
+                      <span className="text-white font-medium">{jugador.equipo_fantasy.nombre}</span>
                     </p>
                     <p className="text-xs text-gray-400">
                       Cláusula:{' '}
@@ -199,16 +307,14 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
 
                   {clausulaMsg && <p className="text-sm font-semibold text-green-400">{clausulaMsg}</p>}
 
-                  {!jugador.es_mio && (
-                    <BloqueClausula
-                      jugador={jugador}
-                      onPagada={(mensaje) => {
-                        setClausulaMsg(mensaje);
-                        recargar();
-                        onCambio?.();
-                      }}
-                    />
-                  )}
+                  <BloqueClausula
+                    jugador={jugador}
+                    onPagada={(mensaje) => {
+                      setClausulaMsg(mensaje);
+                      recargar();
+                      onCambio?.();
+                    }}
+                  />
                 </div>
               )}
 
@@ -253,124 +359,44 @@ export default function JugadorModal({ idJugador, onClose, showOffer = true, onC
                 </div>
               )}
 
-              {/* Stats globales */}
+              {/* Resumen de la temporada */}
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { label: 'Valor', value: formatMoney(jugador.precio_actual), color: 'text-green-400' },
-                  { label: 'Pts totales', value: totalPuntos, color: totalPuntos >= 0 ? 'text-green-400' : 'text-red-400' },
+                  { label: 'Puntos', value: totalPuntos, color: totalPuntos > 0 ? 'text-green-400' : totalPuntos < 0 ? 'text-red-400' : 'text-white' },
+                  { label: 'Media', value: media, color: 'text-white' },
+                  { label: esEnt ? 'Jornadas' : 'Jugados', value: jugados, color: 'text-white' },
                   { label: 'Goles', value: totalGoles, color: 'text-white' },
-                  { label: 'Tarjetas', value: `${totalAm}🟨 ${totalRj}🟥`, color: 'text-white' },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="bg-gray-800 rounded-lg p-2 text-center">
-                    <p className="text-xs text-gray-500 mb-1">{label}</p>
-                    <p className={`font-bold text-sm ${color}`}>{value}</p>
+                    <p className="text-[11px] text-gray-500 mb-0.5">{label}</p>
+                    <p className={`font-bold ${color}`}>{value}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Evolución del valor (desplegable) */}
-              <details className="bg-gray-800 rounded-xl overflow-hidden group/seccion">
-                <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none">
-                  <span className="text-sm font-semibold text-gray-300">📈 Evolución del valor</span>
-                  <div className="flex items-center gap-3 shrink-0">
-                    {variacion !== 0 && (
-                      <span className={`text-xs font-bold ${variacion > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {variacion > 0 ? '+' : ''}{variacion}%
-                      </span>
-                    )}
-                    <span className="text-gray-600 text-xs group-open/seccion:rotate-180 transition-transform">▼</span>
-                  </div>
-                </summary>
-                <div className="border-t border-gray-700 px-4 py-3">
-                  <PrecioGrafica key={jugador.id} puntos={puntosPrecio} />
-                </div>
-              </details>
+              {/* Pestañas */}
+              <div className="flex bg-gray-800 rounded-lg p-1 text-sm font-semibold">
+                {[['puntos', 'Puntos'], ['valor', 'Valor']].map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setPestana(id)}
+                    className={`flex-1 py-1.5 rounded-md transition-colors ${
+                      pestana === id ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-              {/* Desglose por jornada (desplegable, de la más reciente a la más antigua) */}
-              {stats.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-gray-500 text-sm">Sin estadísticas registradas</p>
-                </div>
+              {pestana === 'puntos' ? (
+                jornadas.length === 0 ? (
+                  <p className="text-center py-6 text-gray-500 text-sm">Aún no ha disputado ninguna jornada</p>
+                ) : (
+                  <HistorialPuntos jugador={jugador} jornadas={jornadas} sel={sel} onSel={setSel} />
+                )
               ) : (
-                <details className="bg-gray-800/50 rounded-xl overflow-hidden group/seccion">
-                  <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none">
-                    <span className="text-sm font-semibold text-gray-300">
-                      📋 Desglose por jornada
-                      <span className="ml-2 text-xs font-normal text-gray-500">
-                        {stats.length} jornada{stats.length > 1 ? 's' : ''}
-                      </span>
-                    </span>
-                    <span className="text-gray-600 text-xs group-open/seccion:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div className="space-y-3 px-2 pb-2">
-                    {[...stats].reverse().map(s => {
-                      // El backend da el desglose con sus reglas; suma los puntos guardados si la
-                      // jornada está calculada y los provisionales si no
-                      const lineas = s.desglose ?? [];
-                      const puntosFinales = lineas.reduce((t, l) => t + l.puntos, 0);
-
-                      return (
-                        <details key={s.jornada} className="bg-gray-800 rounded-xl overflow-hidden group">
-                          <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none hover:bg-gray-750 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs font-bold bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">
-                                J{s.jornada}
-                              </span>
-                              {s.partido && (
-                                <span className="text-xs text-gray-400 hidden sm:block">
-                                  {s.partido.local} {s.partido.goles_local}-{s.partido.goles_visitante} {s.partido.visitante}
-                                </span>
-                              )}
-                              {jugador.posicion !== 'ENT' && <span className="text-xs text-gray-500">{s.minutos}'</span>}
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              {/* Resumen icónico */}
-                              <div className="flex items-center gap-1.5 text-xs">
-                                {s.goles > 0 && <span className="text-white">⚽×{s.goles}</span>}
-                                {s.amarillas > 0 && <span>🟨×{s.amarillas}</span>}
-                                {s.rojas > 0 && <span>🟥×{s.rojas}</span>}
-                                {s.porteria_cero && s.minutos >= 60 && <span title="Portería a cero">🧤</span>}
-                                {s.victoria && <span title="Victoria del equipo">✅</span>}
-                                {s.empate && <span title="Empate del equipo">🤝</span>}
-                                {s.es_capitan && <span title="Capitán">©</span>}
-                              </div>
-                              <span className={`font-bold text-base min-w-[2.5rem] text-right ${
-                                puntosFinales > 0 ? 'text-green-400' : puntosFinales < 0 ? 'text-red-400' : 'text-gray-500'
-                              }`}>
-                                {puntosFinales > 0 ? '+' : ''}{puntosFinales}
-                              </span>
-                              <span className="text-gray-600 text-xs group-open:rotate-180 transition-transform">▼</span>
-                            </div>
-                          </summary>
-  
-                          {/* Desglose expandible */}
-                          <div className="border-t border-gray-700 px-4 py-3 space-y-1.5">
-                            {s.partido && (
-                              <p className="text-xs text-gray-400 mb-2 sm:hidden">
-                                {s.partido.local} {s.partido.goles_local}-{s.partido.goles_visitante} {s.partido.visitante}
-                              </p>
-                            )}
-                            {lineas.length === 0 ? (
-                              <p className="text-xs text-gray-600">Sin puntuación este partido</p>
-                            ) : (
-                              // Las líneas a 0 son informativas (p. ej. portería a cero sin llegar a 60 min)
-                              lineas.map((l, i) => (
-                                <div key={i} className="flex justify-between text-sm">
-                                  <span className={l.puntos === 0 ? 'text-gray-600' : 'text-gray-300'}>{l.concepto}</span>
-                                  {l.puntos !== 0 && <PtsColor pts={l.puntos} />}
-                                </div>
-                              ))
-                            )}
-                            <div className="border-t border-gray-700 pt-1.5 mt-1.5 flex justify-between text-sm font-bold">
-                              <span className="text-gray-300">Total jornada {s.jornada}</span>
-                              <PtsColor pts={puntosFinales} />
-                            </div>
-                          </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                </details>
+                <PrecioGrafica key={jugador.id} puntos={puntosPrecio} />
               )}
             </div>
           )}
